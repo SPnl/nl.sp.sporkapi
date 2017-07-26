@@ -1,0 +1,13 @@
+{
+  "name": "spnl/nl.sp.sporkapi",
+  "description": "FIXME",
+  "version": "0.0.1",
+  "type": "civicrm-module",
+  "authors": [
+    {
+      "name": "Benjamin W. Broersma",
+      "email": "bw@broersma.com"
+    }
+  ],
+  "license": "AGPL-3.0"
+}
