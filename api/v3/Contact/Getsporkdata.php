@@ -132,6 +132,7 @@ LEFT JOIN
   civicrm_value_geostelsel geo ON c.id = geo.entity_id
 WHERE
   c.is_deleted = 0
+  AND c.contact_type = 'Individual'
   AND
   (
     geo.afdeling IN ($afdelingParamList)
@@ -142,8 +143,7 @@ WHERE
     OR
     :viewAll
   ) AND
-  geo.afdeling = :afdelingId
-  
+  geo.afdeling = :afdelingId;
 SQL
   );
 //     $stmt2 = $db->prepare(<<<SQL
