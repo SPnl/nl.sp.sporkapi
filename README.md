@@ -18,13 +18,16 @@ Go to `/civicrm/admin/extensions?reset=1`, Ctrl+F `sporkapi`, and enable (`/civi
 # Add oauth2 client
 
 Add oauth2 client: `/admin/structure/oauth2-servers/manage/main/clients`
+
 Pick a random client secret, e.g. `openssl rand -base64 32 | tr +/ -_ | tr -d =`
 
 # Test API from cli:
+
+```
 sudo -u www-data php5 ~/builds-from-source/cv/bin/cv api contact.getsporkdata afdeling_id=1 | jq .
 echo '{"afdeling_id": 1}' | sudo -u www-data php5 ~/builds-from-source/cv/bin/cv api contact.getsporkdata --in=json | jq .
 curl 'http://localhost/oauth2/api/civiapi.json?entity=Contact&action=getsporkdata&afdeling_id=1&key=XXX' -H 'Authorization: Bearer YYY'
-
-Delft = 806867
-Gouda = 806976
-Rotterdam = 806976
+# Delft = 806867
+# Gouda = 806976
+# Rotterdam = 806976
+```
