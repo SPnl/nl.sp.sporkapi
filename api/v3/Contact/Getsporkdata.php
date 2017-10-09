@@ -280,7 +280,7 @@ SQL
 
     $value['phone'] = createNamedArray($value['phone'], ['location', 'type', 'number', 'nummeric', 'ext', 'primary'], ['primary']);
     $value['email'] = createNamedArray($value['email'], ['location', 'email', 'primary', 'billing', 'onHold', 'bulkmail'], ['primary', 'billing', 'onHold', 'bulkmail']);
-    $value['address'] = createNamedArray($value['address'], ['location', 'primary', 'billing', 'address', 'streetName', 'houseNumber', 'houseExt', 'zipcode', 'city', 'lat', 'lng', 'municipality', 'neighborhood', 'cbscode'], ['primary', 'billing'], [], ['lat', 'lng']);
+    $value['address'] = createNamedArray($value['address'], ['location', 'primary', 'billing', 'address', 'streetName', 'houseNumber', 'houseNumberSuffix', 'zipcode', 'city', 'lat', 'lng', 'municipality', 'neighborhood', 'cbscode'], ['primary', 'billing'], ['houseNumber'], ['lat', 'lng']);
     $value['membership_normal'] = createNamedArray($value['membership_normal'], ['join', 'start', 'end', 'state']);
     $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
     $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
