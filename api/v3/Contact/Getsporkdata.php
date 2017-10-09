@@ -27,6 +27,32 @@ function prefixRange($name, $length) {
   return $arr;
 }
 
+function createNamedArray(&$value, $keys, $boolKeys = [], $intKeys = [], $floatKeys = []) {
+  if (empty($value)) {
+    return [];
+  }
+  $values = explode("\x01", $value);
+  $namedArray = [];
+  foreach ($values as &$value) {
+    if (!empty($value)) {
+      $combo = array_combine($keys, explode("\x02", $value));
+      if ($combo !== false) {
+        foreach ($boolKeys as $boolKey) {
+          $combo[$boolKey] = (bool)$combo[$boolKey];
+        }
+        foreach ($intKeys as $intKey) {
+          $combo[$intKey] = intval($combo[$intKey]);
+        }
+        foreach ($floatKeys as $floatKey) {
+          $combo[$floatKey] = (float)$combo[$floatKey];
+        }
+        $namedArray[]= $combo;
+      }
+    }
+  }
+  return $namedArray;
+}
+
 /**
  * Contact.Getsporkdata API
  *
@@ -141,7 +167,7 @@ SELECT
   c.do_not_mail,
   c.do_not_sms,
   c.is_opt_out,
-  GROUP_CONCAT(DISTINCT CONCAT(ltp.display_name, x'02', ptov.label, x'02', p.phone, x'02', p.phone_numeric, x'02', COALESCE(p.phone_ext,''), x'01')) AS phone,
+  GROUP_CONCAT(DISTINCT CONCAT(ltp.display_name, x'02', ptov.label, x'02', p.phone, x'02', p.phone_numeric, x'02', COALESCE(p.phone_ext,''), x'02', p.is_primary, x'01')) AS phone,
   GROUP_CONCAT(DISTINCT CONCAT(lte.display_name, x'02', e.email, x'02', e.is_primary, x'02', e.is_billing, x'02', e.on_hold, x'02', e.is_bulkmail, x'01')) AS email,
   GROUP_CONCAT(DISTINCT CONCAT(lta.display_name, x'02', a.is_primary, x'02', a.is_billing, x'02', COALESCE(a.street_address, ''), x'02', COALESCE(a.street_name, ''), x'02', COALESCE(a.street_number, -1), x'02', COALESCE(a.street_unit, ''), x'02', COALESCE(a.postal_code, ''), x'02', COALESCE(a.city, ''), x'02', COALESCE(a.geo_code_1, -1), x'02', COALESCE(a.geo_code_2, -1), x'02', COALESCE(va.gemeente_24, ''), x'02', COALESCE(va.buurt_25, ''), x'02', COALESCE(va.buurtcode_26, ''), x'01')) AS address,
   GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP', 'Lid SP en ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name, x'01') END) AS membership_normal,
@@ -209,8 +235,7 @@ WHERE
 GROUP BY
   c.id
 HAVING
-  BIT_OR
-  (
+  BIT_OR(
     m.end_date > NOW() - interval 6 month
     OR
     g.id IS NOT NULL
@@ -240,6 +265,26 @@ SQL
   $stmt2->execute();
   //$stmt2->debugDumpParams();
   $values = $stmt2->fetchAll();
+  foreach ($values as &$value) {
+    $value['id'] = intval($value['id']);
+    if ($value['deceased'] === '0' || $value['deceased'] === '1') {
+      $value['deceased'] = (bool)$value['deceased'];
+    }
+    unset($value['is_deceased']);
+    unset($value['deceased_recent']);
+    $value['do_not_email'] = $value['do_not_email'] !== '0';
+    $value['do_not_phone'] = $value['do_not_phone'] !== '0';
+    $value['do_not_mail'] = $value['do_not_mail'] !== '0';
+    $value['do_not_sms'] = $value['do_not_sms'] !== '0';
+    $value['is_opt_out'] = $value['is_opt_out'] !== '0';
+
+    $value['phone'] = createNamedArray($value['phone'], ['location', 'type', 'number', 'nummeric', 'ext', 'primary'], ['primary']);
+    $value['email'] = createNamedArray($value['email'], ['location', 'email', 'primary', 'billing', 'onHold', 'bulkmail'], ['primary', 'billing', 'onHold', 'bulkmail']);
+    $value['address'] = createNamedArray($value['address'], ['location', 'primary', 'billing', 'address', 'streetName', 'houseNumber', 'houseExt', 'zipcode', 'city', 'lat', 'lng', 'municipality', 'neighborhood', 'cbscode'], ['primary', 'billing'], [], ['lat', 'lng']);
+    $value['membership_normal'] = createNamedArray($value['membership_normal'], ['join', 'start', 'end', 'state']);
+    $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
+    $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
+  }
   //var_dump($values[73]);
   //var_dump(bin2hex($values[73]['display_name']));
   $returnValues = $values; /*array(
