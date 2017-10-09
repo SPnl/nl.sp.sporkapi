@@ -34,20 +34,21 @@ function createNamedArray(&$value, $keys, $boolKeys = [], $intKeys = [], $floatK
   $values = explode("\x01", $value);
   $namedArray = [];
   foreach ($values as &$value) {
-    if (!empty($value)) {
-      $combo = array_combine($keys, explode("\x02", $value));
-      if ($combo !== false) {
-        foreach ($boolKeys as $boolKey) {
-          $combo[$boolKey] = (bool)$combo[$boolKey];
-        }
-        foreach ($intKeys as $intKey) {
-          $combo[$intKey] = intval($combo[$intKey]);
-        }
-        foreach ($floatKeys as $floatKey) {
-          $combo[$floatKey] = (float)$combo[$floatKey];
-        }
-        $namedArray[]= $combo;
+    if (empty($value)) {
+      continue;
+    }
+    $combo = array_combine($keys, explode("\x02", $value));
+    if ($combo !== false) {
+      foreach ($boolKeys as $boolKey) {
+        $combo[$boolKey] = (bool)$combo[$boolKey];
       }
+      foreach ($intKeys as $intKey) {
+        $combo[$intKey] = intval($combo[$intKey]);
+      }
+      foreach ($floatKeys as $floatKey) {
+        $combo[$floatKey] = (float)$combo[$floatKey];
+      }
+      $namedArray[]= $combo;
     }
   }
   return $namedArray;
@@ -63,11 +64,7 @@ function createNamedArray(&$value, $keys, $boolKeys = [], $intKeys = [], $floatK
  * @throws API_Exception
  */
 function civicrm_api3_contact_Getsporkdata($params) {
-  //xdebug_break();
   $loggedInContactID = CRM_Core_Session::singleton()->getLoggedInContactID();
-  //$vars = array();
-  //CRM_Core_Session::singleton()->getVars(&$vars);
-  //check if loggedInContactID has access to afdeling id (via )
   if (!array_key_exists('afdeling_id', $params)) {
     throw new API_Exception(/*errorMessage*/ 'Please include afdeling_id' . var_export($params,true), 400);
   }
@@ -128,26 +125,27 @@ SQL
       $values = $stmt->fetchAll();
       foreach ($values as $row) {
         foreach ($select as $key => $value) {
-          if (strpos($row["contact_sub_type"], "\x01$key\x01") !== false) {
-            $select[$key][] = (int)$row["id"];
+          if (strpos($row['contact_sub_type'], "\x01$key\x01") !== false) {
+            $select[$key][] = (int)$row['id'];
           }
         }
       }
     } else {
-      $select["ViewAll"] = true;
+      $select['ViewAll'] = true;
     }
   } else {
-    $select["ViewAll"] = true;
+    $select['ViewAll'] = true;
   }
-  $afdelingParams = prefixRange("afdeling", count($select["SP_Afdeling"]));
-  $afdelingParamList = implode($afdelingParams, ",");
+  $afdelingParams = prefixRange('afdeling', count($select['SP_Afdeling']));
+  $afdelingParamList = implode($afdelingParams, ',');
 
-  $regioParams = prefixRange("regio", count($select["SP_Regio"]));
-  $regioParamList = implode($regioParams, ",");
+  $regioParams = prefixRange('regio', count($select['SP_Regio']));
+  $regioParamList = implode($regioParams, ',');
 
-  $provincieParams = prefixRange("provincie", count($select["SP_Provincie"]));
-  $provincieParamList = implode($provincieParams, ",");
+  $provincieParams = prefixRange('provincie', count($select['SP_Provincie']));
+  $provincieParamList = implode($provincieParams, ',');
 
+  //--  CASE WHEN c.is_deceased AND c.deceased_date THEN c.deceased_date ELSE c.is_deceased END AS deceased2,
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
@@ -161,7 +159,6 @@ SELECT
   COALESCE(NULLIF(c.is_deceased, 1), c.deceased_date, 1) AS deceased,
   c.is_deceased,
   (c.is_deceased = 1 AND COALESCE(c.deceased_date, MAX(ll.modified_date)) > NOW() - interval 6 month) AS deceased_recent,
---  CASE WHEN c.is_deceased AND c.deceased_date THEN c.deceased_date ELSE c.is_deceased END AS deceased2,
   c.do_not_email,
   c.do_not_phone,
   c.do_not_mail,
@@ -244,10 +241,6 @@ HAVING
   (c.is_deceased = 0 OR deceased_recent = 1);
 SQL
   );
-//     $stmt2 = $db->prepare(<<<SQL
-// SELECT   c.display_name FROM   civicrm_contact c LEFT JOIN   civicrm_value_geostelsel geo ON c.id = geo.entity_id WHERE   c.is_deleted = 0   AND   ( geo.afdeling IN (-1,806976)     OR     geo.regio IN (-1)     OR     geo.provincie IN (-1)     OR   :viewAll   ) AND   geo.afdeling = :afdelingId LIMIT 74 OFFSET 10
-// SQL
-//   );
   $viewAll = !empty($select['ViewAll']);
   // We would like to use PARAM_BOOL here, but the MySQL PDO seems broken, see https://bugs.php.net/bug.php?id=66632
   $stmt2->bindParam(':viewAll', $viewAll, PDO::PARAM_INT);
@@ -285,17 +278,5 @@ SQL
     $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
     $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
   }
-  //var_dump($values[73]);
-  //var_dump(bin2hex($values[73]['display_name']));
-  $returnValues = $values; /*array(
-    "where" => $select,
-    "rowcount" => $stmt2->rowCount(),
-    //"errorcode" => $stmt2->errorCode(),"errorinfo" => $stmt2->errorInfo(),
-    //"afdeling_id" => $afdelingId,
-    //"output2" => json_encode($values),
-    "output" => $values,
-    "id" => $loggedInContactID
-  );*/
-  // Spec: civicrm_api3_create_success($values = 1, $params = array(), $entity = NULL, $action = NULL)
-  return civicrm_api3_create_success($returnValues, $params, 'Contact', 'getsporkdata');
+  return civicrm_api3_create_success($values, $params, 'Contact', 'getsporkdata');
 }
