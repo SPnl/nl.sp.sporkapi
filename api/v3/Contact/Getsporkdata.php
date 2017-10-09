@@ -46,7 +46,7 @@ function civicrm_api3_contact_Getsporkdata($params) {
     throw new API_Exception(/*errorMessage*/ 'Please include afdeling_id' . var_export($params,true), 400);
   }
 
-  preg_match('/^(\w+):\/\/(\w+):(\w+)@(\w+)\/(\w+)\?/', CIVICRM_DSN, $dsn);
+  preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@([^\/]+)\/([^\?\/]+)\?/', CIVICRM_DSN, $dsn);
   $db = new PDO("{$dsn[1]}:host={$dsn[4]};dbname={$dsn[5]}", $dsn[2], $dsn[3], array(
     PDO::ATTR_PERSISTENT => true,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -125,11 +125,73 @@ SQL
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
-  c.display_name
+  gov.label AS gender,
+  vl.voorletters_1 AS initials,
+  c.first_name,
+  c.middle_name,
+  c.last_name,
+  c.display_name,
+  c.birth_date AS birthday,
+  COALESCE(NULLIF(c.is_deceased, 1), c.deceased_date, 1) AS deceased,
+  c.is_deceased,
+  (c.is_deceased = 1 AND COALESCE(c.deceased_date, MAX(ll.modified_date)) > NOW() - interval 6 month) AS deceased_recent,
+--  CASE WHEN c.is_deceased AND c.deceased_date THEN c.deceased_date ELSE c.is_deceased END AS deceased2,
+  c.do_not_email,
+  c.do_not_phone,
+  c.do_not_mail,
+  c.do_not_sms,
+  c.is_opt_out,
+  GROUP_CONCAT(DISTINCT CONCAT(ltp.display_name, x'02', ptov.label, x'02', p.phone, x'02', p.phone_numeric, x'02', COALESCE(p.phone_ext,''), x'01')) AS phone,
+  GROUP_CONCAT(DISTINCT CONCAT(lte.display_name, x'02', e.email, x'02', e.is_primary, x'02', e.is_billing, x'02', e.on_hold, x'02', e.is_bulkmail, x'01')) AS email,
+  GROUP_CONCAT(DISTINCT CONCAT(lta.display_name, x'02', a.is_primary, x'02', a.is_billing, x'02', COALESCE(a.street_address, ''), x'02', COALESCE(a.street_name, ''), x'02', COALESCE(a.street_number, -1), x'02', COALESCE(a.street_unit, ''), x'02', COALESCE(a.postal_code, ''), x'02', COALESCE(a.city, ''), x'02', COALESCE(a.geo_code_1, -1), x'02', COALESCE(a.geo_code_2, -1), x'02', COALESCE(va.gemeente_24, ''), x'02', COALESCE(va.buurt_25, ''), x'02', COALESCE(va.buurtcode_26, ''), x'01')) AS address,
+  GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP', 'Lid SP en ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name, x'01') END) AS membership_normal,
+  GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP en ROOD', 'Lid ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name, x'01') END) AS membership_youth,
+  GROUP_CONCAT(DISTINCT CONCAT(g.id, x'02', g.title, x'01')) AS groups,
+  aa.actief_182 AS active,
+  aa.activiteiten_183 AS interests,
+  c.modified_date AS modified
 FROM
   civicrm_contact c
 LEFT JOIN
+  civicrm_value_migratie_1 vl ON c.id = vl.entity_id
+LEFT JOIN
   civicrm_value_geostelsel geo ON c.id = geo.entity_id
+LEFT JOIN
+  civicrm_option_group gog ON gog.name = 'gender' AND gog.is_active
+LEFT JOIN
+  civicrm_option_value gov ON gov.option_group_id = gog.id AND c.gender_id = gov.value AND gov.is_active
+LEFT JOIN
+  civicrm_phone p ON c.id = p.contact_id
+LEFT JOIN
+  civicrm_option_group ptog ON ptog.name = 'phone_type' AND ptog.is_active
+LEFT JOIN
+  civicrm_option_value ptov ON ptov.option_group_id = ptog.id AND p.phone_type_id = ptov.value AND ptov.is_active
+LEFT JOIN
+  civicrm_location_type ltp ON ltp.id = p.location_type_id AND ltp.is_active
+LEFT JOIN
+  civicrm_email e ON c.id = e.contact_id
+LEFT JOIN
+  civicrm_location_type lte ON lte.id = e.location_type_id AND lte.is_active
+LEFT JOIN
+  civicrm_address a ON c.id = a.contact_id
+LEFT JOIN
+  civicrm_location_type lta ON lta.id = a.location_type_id AND lta.is_active
+LEFT JOIN
+  civicrm_value_adresgegevens_12 va ON va.entity_id = a.id
+LEFT JOIN
+  civicrm_membership m ON m.contact_id = c.id
+LEFT JOIN
+  civicrm_membership_type mt ON m.membership_type_id = mt.id AND mt.is_active AND mt.name IN ('Lid SP', 'Lid SP en ROOD', 'Lid ROOD')
+LEFT JOIN
+  civicrm_membership_status ms ON ms.id = m.status_id
+LEFT JOIN
+  civicrm_group_contact gc ON c.id = gc.contact_id AND status = 'Added'
+LEFT JOIN
+  civicrm_group g ON gc.group_id = g.id AND g.is_active AND g.id IN (2658, 6514)
+LEFT JOIN
+  civicrm_log ll ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
+LEFT JOIN
+  civicrm_value_actief_sp_62 aa ON aa.entity_id = c.id
 WHERE
   c.is_deleted = 0
   AND c.contact_type = 'Individual'
@@ -143,7 +205,18 @@ WHERE
     OR
     :viewAll
   ) AND
-  geo.afdeling = :afdelingId;
+  geo.afdeling = :afdelingId
+GROUP BY
+  c.id
+HAVING
+  BIT_OR
+  (
+    m.end_date > NOW() - interval 6 month
+    OR
+    g.id IS NOT NULL
+  )
+  AND
+  (c.is_deceased = 0 OR deceased_recent = 1);
 SQL
   );
 //     $stmt2 = $db->prepare(<<<SQL
