@@ -146,10 +146,13 @@ SQL
   $provincieParamList = implode($provincieParams, ',');
 
   //--  CASE WHEN c.is_deceased AND c.deceased_date THEN c.deceased_date ELSE c.is_deceased END AS deceased2,
+  //-- this way gender uses expression_cache, which is fast
+  //-- for some reason we cannot get civicrm_option_value nor civicrm_location_type, civicrm_membership_status and civicrm_membership_type materialized / cached..
+  //-- CREATE INDEX BWBloose_index_scan ON civicrm_log (entity_table, entity_id, modified_date); -- created the index to do a loose index scan on civicrm_log
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
-  gov.label AS gender,
+  (SELECT gov.value FROM civicrm_option_value gov JOIN civicrm_option_group gog ON gog.name = 'gender' AND gog.is_active AND gov.option_group_id = gog.id AND gov.is_active WHERE gov.value = c.gender_id) AS gender,
   vl.voorletters_1 AS initials,
   c.first_name,
   c.middle_name,
@@ -180,10 +183,6 @@ LEFT JOIN
 LEFT JOIN
   civicrm_value_geostelsel geo ON c.id = geo.entity_id
 LEFT JOIN
-  civicrm_option_group gog ON gog.name = 'gender' AND gog.is_active
-LEFT JOIN
-  civicrm_option_value gov ON gov.option_group_id = gog.id AND c.gender_id = gov.value AND gov.is_active
-LEFT JOIN
   civicrm_phone p ON c.id = p.contact_id
 LEFT JOIN
   civicrm_option_group ptog ON ptog.name = 'phone_type' AND ptog.is_active
@@ -208,13 +207,13 @@ LEFT JOIN
 LEFT JOIN
   civicrm_membership_status ms ON ms.id = m.status_id
 LEFT JOIN
-  civicrm_group_contact gc ON c.id = gc.contact_id AND status = 'Added'
+  civicrm_group_contact gc ON gc.group_id IN (2658, 6514) AND c.id = gc.contact_id AND status = 'Added'
 LEFT JOIN
   civicrm_group g ON gc.group_id = g.id AND g.is_active AND g.id IN (2658, 6514)
 LEFT JOIN
-  civicrm_log ll ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
-LEFT JOIN
   civicrm_value_actief_sp_62 aa ON aa.entity_id = c.id
+LEFT JOIN
+  civicrm_log ll FORCE INDEX(BWBloose_index_scan) ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
 WHERE
   c.is_deleted = 0
   AND c.contact_type = 'Individual'

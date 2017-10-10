@@ -1,26 +1,26 @@
 <?xml version="1.0"?>
 <extension key="nl.sp.sporkapi" type="module">
   <file>sporkapi</file>
-  <name>FIXME</name>
-  <description>FIXME</description>
+  <name>Sprok API</name>
+  <description>This extention enables spork to talk to civicrm in an efficient way.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Benjamin W. Broersma</author>
     <email>bw@broersma.com</email>
   </maintainer>
   <urls>
-    <url desc="Main Extension Page">http://FIXME</url>
-    <url desc="Documentation">http://FIXME</url>
-    <url desc="Support">http://FIXME</url>
+    <url desc="Main Extension Page">https://spork.sp.nl/code/SP/nl.sp.sporkapi/</url>
+    <url desc="Documentation">https://spork.sp.nl/code/SP/nl.sp.sporkapi/wiki</url>
+    <url desc="Support">https://spork.sp.nl/code/SP/nl.sp.sporkapi/issues</url>
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
-  <releaseDate>2017-10-09</releaseDate>
-  <version>0.0.1</version>
-  <develStage>alpha</develStage>
+  <releaseDate>2017-10-10</releaseDate>
+  <version>0.0.2</version>
+  <develStage>beta</develStage>
   <compatibility>
     <ver>4.7</ver>
   </compatibility>
-  <comments>This is a new, undeveloped module</comments>
+  <comments></comments>
   <civix>
     <namespace>CRM/Sporkapi</namespace>
   </civix>
