@@ -152,7 +152,7 @@ SQL
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
-  (SELECT gov.value FROM civicrm_option_value gov JOIN civicrm_option_group gog ON gog.name = 'gender' AND gog.is_active AND gov.option_group_id = gog.id AND gov.is_active WHERE gov.value = c.gender_id) AS gender,
+  (SELECT gov.label FROM civicrm_option_value gov JOIN civicrm_option_group gog ON gog.name = 'gender' AND gog.is_active AND gov.option_group_id = gog.id AND gov.is_active WHERE gov.value = c.gender_id) AS gender,
   vl.voorletters_1 AS initials,
   c.first_name,
   c.middle_name,
