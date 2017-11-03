@@ -258,17 +258,16 @@ SQL
   //$stmt2->debugDumpParams();
   $values = $stmt2->fetchAll();
   foreach ($values as &$value) {
-    $value['id'] = intval($value['id']);
     if ($value['deceased'] === '0' || $value['deceased'] === '1') {
       $value['deceased'] = (bool)$value['deceased'];
     }
     unset($value['is_deceased']);
     unset($value['deceased_recent']);
-    $value['do_not_email'] = $value['do_not_email'] !== '0';
-    $value['do_not_phone'] = $value['do_not_phone'] !== '0';
-    $value['do_not_mail'] = $value['do_not_mail'] !== '0';
-    $value['do_not_sms'] = $value['do_not_sms'] !== '0';
-    $value['is_opt_out'] = $value['is_opt_out'] !== '0';
+    $value['do_not_email'] = $value['do_not_email'] !== 0;
+    $value['do_not_phone'] = $value['do_not_phone'] !== 0;
+    $value['do_not_mail'] = $value['do_not_mail'] !== 0;
+    $value['do_not_sms'] = $value['do_not_sms'] !== 0;
+    $value['is_opt_out'] = $value['is_opt_out'] !== 0;
 
     $value['phone'] = createNamedArray($value['phone'], ['location', 'type', 'number', 'nummeric', 'ext', 'primary'], ['primary']);
     $value['email'] = createNamedArray($value['email'], ['location', 'email', 'primary', 'billing', 'onHold', 'bulkmail'], ['primary', 'billing', 'onHold', 'bulkmail']);

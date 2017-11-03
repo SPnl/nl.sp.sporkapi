@@ -1,5 +1,9 @@
 # Spork API - a CiviCRM extension
 
+## Requirements
+
+- php5-mysqlnd (`php5 --ri pdo_mysql` should display `Client API version => mysqlnd`, not mysql since the code has strict type checking)
+
 ## Install
 
 ### Composer
