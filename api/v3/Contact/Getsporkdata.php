@@ -174,7 +174,7 @@ SELECT
   GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP en ROOD', 'Lid ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name) END SEPARATOR x'01') AS membership_youth,
   GROUP_CONCAT(DISTINCT CONCAT(g.id, x'02', g.title) SEPARATOR x'01') AS groups,
   aa.actief_182 AS active,
-  aa.activiteiten_183 AS interests,
+  aa.activiteiten_183 AS activities,
   c.modified_date AS modified
 FROM
   civicrm_contact c
