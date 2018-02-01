@@ -1,0 +1,42 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "This file is @generated automatically"
+    ],
+    "hash": "e8dbab6565e62b4e4dd4ff888af256be",
+    "content-hash": "c91855723b96e02bb52a03a19c6a613c",
+    "packages": [
+        {
+            "name": "spnl/nl.sp.drupal-oauth-provider",
+            "version": "1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/SPnl/nl.sp.drupal-oauth-provider.git",
+                "reference": "1e451b606dfc39261b1c5de84ac99b9cf668891f"
+            },
+            "type": "drupal-custom-module",
+            "license": [
+                "GPL-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Kevin Levie",
+                    "email": "kevin@levity.nl"
+                }
+            ],
+            "description": "Module that configures a Drupal website as an OAuth2 Provider",
+            "time": "2018-01-29 08:19:20"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">= 5.6.30"
+    },
+    "platform-dev": []
+}
