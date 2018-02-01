@@ -8,5 +8,15 @@
       "email": "bw@broersma.com"
     }
   ],
-  "license": "AGPL-3.0"
+  "license": "AGPL-3.0",
+  "require": {
+    "php": ">= 5.6.30",
+    "spnl/nl.sp.drupal-oauth-provider": "^1.2.1"
+  },
+  "repositories": {
+    "drupal-oauth-provider": {
+      "type": "git",
+      "url": "https://github.com/SPnl/nl.sp.drupal-oauth-provider.git"
+    }
+  }
 }

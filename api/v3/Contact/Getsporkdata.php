@@ -66,7 +66,7 @@ function createNamedArray(&$value, $keys, $boolKeys = [], $intKeys = [], $floatK
 function civicrm_api3_contact_Getsporkdata($params) {
   $loggedInContactID = CRM_Core_Session::singleton()->getLoggedInContactID();
   if (!array_key_exists('afdeling_id', $params)) {
-    throw new API_Exception(/*errorMessage*/ 'Please include afdeling_id' . var_export($params,true), 400);
+    throw new API_Exception(/*errorMessage*/ 'Please include afdeling_id', 400);
   }
 
   preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@([^\/]+)\/([^\?\/]+)\?/', CIVICRM_DSN, $dsn);
@@ -149,6 +149,10 @@ SQL
   //-- this way gender uses expression_cache, which is fast
   //-- for some reason we cannot get civicrm_option_value nor civicrm_location_type, civicrm_membership_status and civicrm_membership_type materialized / cached..
   //-- CREATE INDEX BWBloose_index_scan ON civicrm_log (entity_table, entity_id, modified_date); -- created the index to do a loose index scan on civicrm_log
+  // --(c.is_deceased = 1 AND COALESCE(c.deceased_date, MAX(ll.modified_date)) > NOW() - interval 3 month) AS deceased_recent,
+  // --LEFT JOIN
+  // --  civicrm_log ll FORCE INDEX(BWBloose_index_scan) ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
+
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
@@ -161,7 +165,7 @@ SELECT
   c.birth_date AS birthday,
   COALESCE(NULLIF(c.is_deceased, 1), c.deceased_date, 1) AS deceased,
   c.is_deceased,
-  (c.is_deceased = 1 AND COALESCE(c.deceased_date, MAX(ll.modified_date)) > NOW() - interval 6 month) AS deceased_recent,
+  (c.is_deceased = 1 AND COALESCE(c.deceased_date, c.modified_date) > NOW() - interval 3 month) AS deceased_recent,
   c.do_not_email,
   c.do_not_phone,
   c.do_not_mail,
@@ -212,8 +216,6 @@ LEFT JOIN
   civicrm_group g ON gc.group_id = g.id AND g.is_active AND g.id IN (2658, 6514)
 LEFT JOIN
   civicrm_value_actief_sp_62 aa ON aa.entity_id = c.id
-LEFT JOIN
-  civicrm_log ll FORCE INDEX(BWBloose_index_scan) ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
 WHERE
   c.is_deleted = 0
   AND c.contact_type = 'Individual'
@@ -232,7 +234,7 @@ GROUP BY
   c.id
 HAVING
   BIT_OR(
-    m.end_date > NOW() - interval 6 month
+    m.end_date > NOW() - interval 3 month
     OR
     g.id IS NOT NULL
   )
@@ -256,8 +258,8 @@ SQL
   }
   $stmt2->execute();
   //$stmt2->debugDumpParams();
-  $values = $stmt2->fetchAll();
-  foreach ($values as &$value) {
+  $contacts = $stmt2->fetchAll();
+  foreach ($contacts as &$value) {
     if ($value['deceased'] === '0' || $value['deceased'] === '1') {
       $value['deceased'] = (bool)$value['deceased'];
     }
@@ -276,5 +278,6 @@ SQL
     $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
     $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
   }
+  $values = ['contacts' => $contacts, 'selects' => $selects];
   return civicrm_api3_create_success($values, $params, 'Contact', 'getsporkdata');
 }
