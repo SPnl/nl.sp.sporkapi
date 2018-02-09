@@ -77,15 +77,15 @@ function civicrm_api3_contact_Getsporkdata($params) {
     PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8'"
   ));
   $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-  $select = [ "SP_Afdeling" => [-1], "SP_Regio" => [-1], "SP_Provincie" => [-1]];
-  if (!empty($params['check_permissions'])) {
-    if (!CRM_Core_Permission::check("access all contacts (view)")) {
-      // if the contact has no drupal contact view access,
-      // check the basic users access in toegangsgegevens
-      // fetch the contacts (sp-geostelsels) that the user has access to
-      // magic variables: 3 = the id of Organization (is a reserved value hat should not change)
-      // BTW the civicrm_contact_type shouldn't change either (and if the label change, we should change it here too)
-      $stmt = $db->prepare(<<<SQL
+  // The DB is used to populate a select (even of admins) with their toegangsgevens table (as quick access), the DB is copied to the ACL if we don't have admin/landelijk access
+  $selectDB = [ 'SP_Afdeling' => [], 'SP_Regio' => [], 'SP_Provincie' => []];
+  $selectViewAll = false;
+  // if the contact has no drupal contact view access,
+  // check the basic users access in toegangsgegevens
+  // fetch the contacts (sp-geostelsels) that the user has access to
+  // magic variables: 3 = the id of Organization (is a reserved value hat should not change)
+  // BTW the civicrm_contact_type shouldn't change either (and if the label change, we should change it here too)
+  $stmt = $db->prepare(<<<SQL
 SELECT
   contact_sub_type,
   display_name,
@@ -119,30 +119,41 @@ WHERE
   ) AND
   contact_type = 'Organization';
 SQL
-      );
-      $stmt->bindParam(':contactId', $loggedInContactID, PDO::PARAM_INT);
-      $stmt->execute();
-      $values = $stmt->fetchAll();
-      foreach ($values as $row) {
-        foreach ($select as $key => $value) {
-          if (strpos($row['contact_sub_type'], "\x01$key\x01") !== false) {
-            $select[$key][] = (int)$row['id'];
-          }
-        }
+  );
+  $stmt->bindParam(':contactId', $loggedInContactID, PDO::PARAM_INT);
+  $stmt->execute();
+  $values = $stmt->fetchAll();
+  foreach ($values as $row) {
+    foreach ($selectDB as $key => $value) {
+      if (strpos($row['contact_sub_type'], "\x01$key\x01") !== false) {
+        $selectDB[$key][] = (int)$row['id'];
       }
-    } else {
-      $select['ViewAll'] = true;
     }
-  } else {
-    $select['ViewAll'] = true;
   }
-  $afdelingParams = prefixRange('afdeling', count($select['SP_Afdeling']));
+  // The ACL is used to limit the second query
+  $selectACL = [ 'SP_Afdeling' => [-1], 'SP_Regio' => [-1], 'SP_Provincie' => [-1]];
+  // Add -1 for empty arrays, since we need 1 value in a X IN (...) query
+  foreach ($selectDB as $key => $value) {
+    if (count($selectDB[$key]) === 0) {
+      $selectDB[$key][] = -1;
+    }
+  }
+  if (isset($params['check_permissions']) && $params['check_permissions'] == false) {
+    $selectViewAll = true;
+  } else {
+    if (CRM_Core_Permission::check("access all contacts (view)")) {
+      $selectViewAll = true;
+    } else {
+      $selectACL = $selectDB;
+    }
+  }
+  $afdelingParams = prefixRange('afdeling', count($selectACL['SP_Afdeling']));
   $afdelingParamList = implode($afdelingParams, ',');
 
-  $regioParams = prefixRange('regio', count($select['SP_Regio']));
+  $regioParams = prefixRange('regio', count($selectACL['SP_Regio']));
   $regioParamList = implode($regioParams, ',');
 
-  $provincieParams = prefixRange('provincie', count($select['SP_Provincie']));
+  $provincieParams = prefixRange('provincie', count($selectACL['SP_Provincie']));
   $provincieParamList = implode($provincieParams, ',');
 
   //--  CASE WHEN c.is_deceased AND c.deceased_date THEN c.deceased_date ELSE c.is_deceased END AS deceased2,
@@ -242,19 +253,18 @@ HAVING
   (c.is_deceased = 0 OR deceased_recent = 1);
 SQL
   );
-  $viewAll = !empty($select['ViewAll']);
   // We would like to use PARAM_BOOL here, but the MySQL PDO seems broken, see https://bugs.php.net/bug.php?id=66632
-  $stmt2->bindParam(':viewAll', $viewAll, PDO::PARAM_INT);
+  $stmt2->bindParam(':viewAll', $selectViewAll, PDO::PARAM_INT);
   $afdelingId = (int)$params['afdeling_id'];
   $stmt2->bindParam(':afdelingId', $afdelingId, PDO::PARAM_INT);
-  for ($i = 0; $i < count($select['SP_Afdeling']); $i++) { 
-    $stmt2->bindParam(":afdeling$i", $select['SP_Afdeling'][$i], PDO::PARAM_INT);
+  for ($i = 0; $i < count($selectACL['SP_Afdeling']); $i++) { 
+    $stmt2->bindParam(":afdeling$i", $selectACL['SP_Afdeling'][$i], PDO::PARAM_INT);
   }
-  for ($i = 0; $i < count($select['SP_Regio']); $i++) { 
-    $stmt2->bindParam(":regio$i", $select['SP_Regio'][$i], PDO::PARAM_INT);
+  for ($i = 0; $i < count($selectACL['SP_Regio']); $i++) { 
+    $stmt2->bindParam(":regio$i", $selectACL['SP_Regio'][$i], PDO::PARAM_INT);
   }
-  for ($i = 0; $i < count($select['SP_Provincie']); $i++) { 
-    $stmt2->bindParam(":provincie$i", $select['SP_Provincie'][$i], PDO::PARAM_INT);
+  for ($i = 0; $i < count($selectACL['SP_Provincie']); $i++) { 
+    $stmt2->bindParam(":provincie$i", $selectACL['SP_Provincie'][$i], PDO::PARAM_INT);
   }
   $stmt2->execute();
   //$stmt2->debugDumpParams();
@@ -278,6 +288,6 @@ SQL
     $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
     $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
   }
-  $values = ['contacts' => $contacts, 'selects' => $selects];
+  $values = ['contacts' => $contacts, 'selects' => $selectDB, 'viewall' => $selectViewAll ? true : false];
   return civicrm_api3_create_success($values, $params, 'Contact', 'getsporkdata');
 }
