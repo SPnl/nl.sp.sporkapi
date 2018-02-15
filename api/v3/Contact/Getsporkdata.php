@@ -13,7 +13,7 @@ function _civicrm_api3_contact_Getsporkdata_spec(&$spec) {
     'api.required' => 0,
     'name' => 'afdeling_id',
     'title' => 'Afdeling Id (int)',
-    'type' => CRM_Utils_Type::T_INT
+    'type' => CRM_Utils_Type::T_INT,
   ];
 }
 
@@ -74,7 +74,7 @@ function civicrm_api3_contact_Getsporkdata($params) {
     PDO::ATTR_PERSISTENT => true,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES => false,
-    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8'"
+    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8'",
   ));
   $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   // The DB is used to populate a select (even of admins) with their toegangsgevens table (as quick access), the DB is copied to the ACL if we don't have admin/landelijk access
@@ -164,6 +164,20 @@ SQL
   // --LEFT JOIN
   // --  civicrm_log ll FORCE INDEX(BWBloose_index_scan) ON ll.entity_id = c.id AND ll.entity_table = 'civicrm_contact'
 
+  // GROUP_CONCAT(DISTINCT CONCAT(g.id, x'02', g.title) SEPARATOR x'01') AS groups,
+  // ..
+  // LEFT JOIN
+  //   civicrm_group_contact gc ON gc.group_id IN (2658, 6514) AND c.id = gc.contact_id AND status = 'Added'
+  // LEFT JOIN
+  //   civicrm_group g ON gc.group_id = g.id AND g.is_active AND g.id IN (2658, 6514)
+  // ..
+  // (
+  //   BIT_OR(
+  //     m.end_date > NOW() - interval 3 month AND mt.name IN ('Lid SP', 'Lid SP en ROOD', 'Lid ROOD')
+  //   ) OR
+  //   g.id IS NOT NULL
+  // )
+
   $stmt2 = $db->prepare(<<<SQL
 SELECT
   c.id,
@@ -187,7 +201,6 @@ SELECT
   GROUP_CONCAT(DISTINCT CONCAT(lta.display_name, x'02', a.is_primary, x'02', a.is_billing, x'02', COALESCE(a.street_address, ''), x'02', COALESCE(a.street_name, ''), x'02', COALESCE(a.street_number, -1), x'02', COALESCE(a.street_unit, ''), x'02', COALESCE(a.postal_code, ''), x'02', COALESCE(a.city, ''), x'02', COALESCE(a.geo_code_1, -1), x'02', COALESCE(a.geo_code_2, -1), x'02', COALESCE(va.gemeente_24, ''), x'02', COALESCE(va.buurt_25, ''), x'02', COALESCE(va.buurtcode_26, '')) SEPARATOR x'01') AS address,
   GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP', 'Lid SP en ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name) END SEPARATOR x'01') AS membership_normal,
   GROUP_CONCAT(DISTINCT CASE WHEN mt.name IN ('Lid SP en ROOD', 'Lid ROOD') THEN CONCAT(m.join_date, x'02', m.start_date, x'02', m.end_date, x'02', ms.name) END SEPARATOR x'01') AS membership_youth,
-  GROUP_CONCAT(DISTINCT CONCAT(g.id, x'02', g.title) SEPARATOR x'01') AS groups,
   aa.actief_182 AS active,
   aa.activiteiten_183 AS activities,
   c.modified_date AS modified
@@ -222,10 +235,6 @@ LEFT JOIN
 LEFT JOIN
   civicrm_membership_status ms ON ms.id = m.status_id
 LEFT JOIN
-  civicrm_group_contact gc ON gc.group_id IN (2658, 6514) AND c.id = gc.contact_id AND status = 'Added'
-LEFT JOIN
-  civicrm_group g ON gc.group_id = g.id AND g.is_active AND g.id IN (2658, 6514)
-LEFT JOIN
   civicrm_value_actief_sp_62 aa ON aa.entity_id = c.id
 WHERE
   c.is_deleted = 0
@@ -244,11 +253,7 @@ WHERE
 GROUP BY
   c.id
 HAVING
-  BIT_OR(
-    m.end_date > NOW() - interval 3 month
-    OR
-    g.id IS NOT NULL
-  )
+  BIT_OR(m.end_date > NOW() - interval 3 month AND mt.name IN ('Lid SP', 'Lid SP en ROOD', 'Lid ROOD'))
   AND
   (c.is_deceased = 0 OR deceased_recent = 1);
 SQL
@@ -286,7 +291,7 @@ SQL
     $value['address'] = createNamedArray($value['address'], ['location', 'primary', 'billing', 'address', 'streetName', 'houseNumber', 'houseNumberSuffix', 'zipcode', 'city', 'lat', 'lng', 'municipality', 'neighborhood', 'cbscode'], ['primary', 'billing'], ['houseNumber'], ['lat', 'lng']);
     $value['membership_normal'] = createNamedArray($value['membership_normal'], ['join', 'start', 'end', 'state']);
     $value['membership_youth'] = createNamedArray($value['membership_youth'], ['join', 'start', 'end', 'state']);
-    $value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
+    //$value['groups'] = createNamedArray($value['groups'], ['id', 'title'], [], ['id']);
   }
   $values = ['contacts' => $contacts, 'selects' => $selectDB, 'viewall' => $selectViewAll ? true : false];
   return civicrm_api3_create_success($values, $params, 'Contact', 'getsporkdata');
