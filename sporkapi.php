@@ -3,6 +3,24 @@
 require_once 'sporkapi.civix.php';
 
 /**
+ * Implementation of hook_civicrm_alterAPIPermissions.
+ * This hook is called when API 3 permissions are checked.
+ * This hook alters the $permissions structure from CRM/Core/DAO/permissions.php for the group_contact entity action create, so the custom 'add to group enabled' is checked.
+ *  
+ * @param string $entity - the API entity (like contact)
+ * @param string $action - the API action (like get)
+ * @param array &$params - the API parameters
+ * @param array &$permisisons - the associative permissions array (probably to be altered by this hook)
+ *
+ * @link https://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_alterAPIPermissions
+ */
+function sporkapi_civicrm_alterAPIPermissions($entity, $action, &$params, &$permissions) {
+  if ($entity === 'group_contact' && $action === 'create') {
+    $permissions['group_contact']['create'] = ['access CiviCRM', 'add to group enabled'];
+  }
+}
+
+/**
  * Implements hook_civicrm_config().
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_config
